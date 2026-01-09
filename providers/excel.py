@@ -110,9 +110,13 @@ class ExcelProvider:
         for _, row in df.iterrows():
             lat, lon = parse_coordinates(row[self.COL_COORDS])
 
+            name = str(row[self.COL_NAME]).strip()
+            code = row[self.COL_CODE]
+            point_id = name if pd.isna(code) else str(code).strip()
+
             point = MeasurementPoint(
-                id=str(row[self.COL_CODE]).strip(),
-                name=str(row[self.COL_NAME]).strip(),
+                id=point_id,
+                name=name,
                 metadata={
                     "river_name": str(row[self.COL_RIVER]).strip(),
                     "jcwp_code": str(row[self.COL_JCWP]).strip(),

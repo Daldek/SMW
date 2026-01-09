@@ -35,3 +35,8 @@ htmlcov/
 
 # mypy
 .mypy_cache/
+
+# Build artifacts
+*.egg-info/
+dist/
+build/

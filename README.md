@@ -1,19 +1,25 @@
-# System Wizualizacji Parametrów Jakości Wód
+# System Wizualizacji Parametrow Jakosci Wod
 
-Przeglądarkowe narzędzie do wizualizacji danych pomiarowych jakości wód powierzchniowych.
+Przegladarkowe narzedzie do wizualizacji danych pomiarowych jakosci wod powierzchniowych.
 
 ## Opis
 
-System umożliwia wizualizację zmienności parametrów fizykochemicznych wód na podstawie danych z różnych źródeł (Excel, CSV, API). Architektura oparta na warstwach zapewnia niezależność wizualizacji od formatu danych źródłowych.
+System umozliwia wizualizacje zmiennosci parametrow fizykochemicznych wod na podstawie danych z roznych zrodel (Excel, CSV, API). Architektura oparta na warstwach zapewnia niezaleznosc wizualizacji od formatu danych zrodlowych.
 
-### Główne funkcje
+### Glowne funkcje
 
-- Wczytywanie danych z plików Excel
-- Wybór punktu pomiarowego
-- Wizualizacja trzech parametrów na jednym wykresie:
-  - Temperatura wody (0-30°C)
-  - pH (5-9)
-  - Tlen rozpuszczony (0-15 mg/L)
+- Wczytywanie danych z plikow Excel
+- Wybor punktu pomiarowego
+- Dwa typy wykresow:
+  - **Wykres liniowy** - parametry fizykochemiczne:
+    - Temperatura wody (0-30°C)
+    - pH (5-9)
+    - Tlen rozpuszczony (0-15 mg/L)
+    - Przewodnosc elektrolityczna (0-3500 µS/cm)
+  - **Wykres punktowy** - zwiazki chemiczne:
+    - Azotany, azotyny, fosforany, chlorki, siarczany
+- Obsluga flag pomiarowych (`<`, `>`) - wartosci poza zakresem pomiaru sa wyroznionie czarna obwodka
+- Tryb batch - generowanie wykresow dla wielu plikow naraz z pobraniem ZIP
 
 ## Wymagania
 
@@ -23,11 +29,11 @@ System umożliwia wizualizację zmienności parametrów fizykochemicznych wód n
 
 1. Sklonuj repozytorium:
 ```bash
-git clone <url-repozytorium>
+git clone https://github.com/Daldek/SMW.git
 cd SMW
 ```
 
-2. Utwórz i aktywuj środowisko wirtualne:
+2. Utworz i aktywuj srodowisko wirtualne:
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # Linux/macOS
@@ -35,9 +41,9 @@ source .venv/bin/activate  # Linux/macOS
 .venv\Scripts\activate     # Windows
 ```
 
-3. Zainstaluj zależności:
+3. Zainstaluj pakiet w trybie edytowalnym:
 ```bash
-pip install -r requirements.txt
+pip install -e .
 ```
 
 ## Uruchomienie
@@ -46,13 +52,22 @@ pip install -r requirements.txt
 streamlit run gui/app.py
 ```
 
-Aplikacja otworzy się w przeglądarce pod adresem `http://localhost:8501`.
+Aplikacja otworzy sie w przegladarce pod adresem `http://localhost:8501`.
 
-## Użytkowanie
+## Uzytkowanie
 
-1. Załaduj plik Excel z danymi pomiarowymi
+### Tryb pojedynczego pliku
+
+1. Zaladuj plik Excel z danymi pomiarowymi
 2. Wybierz punkt pomiarowy z listy
-3. Wykres zostanie wygenerowany automatycznie
+3. Wykresy zostana wygenerowane automatycznie
+
+### Tryb batch (generowanie z folderu)
+
+1. Przejdz do zakladki "Generowanie z folderu"
+2. Zaladuj wiele plikow Excel
+3. Kliknij "Generuj wykresy"
+4. Pobierz archiwum ZIP z wszystkimi wykresami
 
 ## Struktura projektu
 
@@ -61,26 +76,27 @@ SMW/
 ├── domain/              # Model domenowy
 │   ├── measurement.py   # Klasa Measurement
 │   └── point.py         # Klasa MeasurementPoint
-├── providers/           # Adaptery źródeł danych
-│   ├── base.py          # Protokół DataProvider
-│   ├── excel.py         # Provider dla plików Excel
-│   └── parsers.py       # Narzędzia parsowania
-├── visualization/       # Generowanie wykresów
-│   └── plots.py         # Funkcja plot_water_quality
-├── gui/                 # Interfejs użytkownika
+├── providers/           # Adaptery zrodel danych
+│   ├── base.py          # Protokol DataProvider
+│   ├── excel.py         # Provider dla plikow Excel
+│   └── parsers.py       # Narzedzia parsowania
+├── visualization/       # Generowanie wykresow
+│   └── plots.py         # Funkcje plot_water_quality, plot_chemical_parameters
+├── gui/                 # Interfejs uzytkownika
 │   └── app.py           # Aplikacja Streamlit
 ├── tests/               # Testy jednostkowe
-├── requirements.txt     # Zależności Python
+├── pyproject.toml       # Konfiguracja pakietu
+├── requirements.txt     # Zaleznosci Python
 └── CLAUDE.md            # Instrukcje dla AI
 ```
 
 ## Architektura
 
-System składa się z czterech warstw:
+System sklada sie z czterech warstw:
 
 1. **Domain Model** - stabilne struktury danych (`Measurement`, `MeasurementPoint`)
-2. **Data Providers** - adaptery mapujące źródła danych do modelu domenowego
-3. **Visualization** - generowanie wykresów (niezależne od źródła danych)
+2. **Data Providers** - adaptery mapujace zrodla danych do modelu domenowego
+3. **Visualization** - generowanie wykresow (niezalezne od zrodla danych)
 4. **GUI** - interfejs Streamlit (nie zawiera logiki domenowej)
 
 ## Testy
@@ -91,16 +107,20 @@ pytest tests/ -v
 
 ## Format danych Excel
 
-Plik Excel musi zawierać:
-- Arkusz `Punkty` z listą punktów pomiarowych
-- Osobny arkusz dla każdego punktu z danymi pomiarowymi
+Plik Excel musi zawierac:
+- Arkusz `Punkty` z lista punktow pomiarowych (kolumny: Kod punktu, Nazwa punktu, itp.)
+- Osobny arkusz dla kazdego punktu z danymi pomiarowymi
+
+Obslugiwane formaty wartosci:
+- Liczby: `1.23`, `1,23`
+- Flagi zakresu: `<0.05`, `>100`
 
 ## Dokumentacja
 
 - `PRD.md` - opis produktu i wymagania funkcjonalne
-- `ARCHITECTURE.md` - szczegóły architektury
+- `ARCHITECTURE.md` - szczegoly architektury
 - `IMPLEMENTATION_PROMPT.md` - instrukcje implementacyjne
-- `RULES.md` - reguły techniczne i standardy
+- `RULES.md` - reguly techniczne i standardy
 
 ## Licencja
 
