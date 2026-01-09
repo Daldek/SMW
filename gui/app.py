@@ -98,6 +98,12 @@ def render_batch_mode() -> None:
         st.warning("Nie znaleziono prawidlowych plikow Excel.")
         return
 
+    # Limit number of files
+    MAX_FILES = 20
+    if len(valid_files) > MAX_FILES:
+        st.error(f"Maksymalnie mozna przeslac {MAX_FILES} plikow naraz.")
+        return
+
     st.info(f"Zaladowano {len(valid_files)} plikow Excel.")
 
     if st.button("Generuj wykresy", type="primary"):
