@@ -1,6 +1,79 @@
 """Parsing utilities for data providers."""
 
+import logging
+import re
+import urllib.request
 from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+_GOOGLE_MAPS_HOSTS = ("maps.app.goo.gl", "goo.gl/maps", "google.com/maps")
+
+
+def _is_google_maps_url(text: str) -> bool:
+    """Check if text is a Google Maps URL."""
+    return text.startswith("http") and any(h in text for h in _GOOGLE_MAPS_HOSTS)
+
+
+def resolve_google_maps_url(url: str) -> tuple[Optional[float], Optional[float]]:
+    """
+    Resolve a Google Maps URL and extract coordinates.
+
+    Handles shortened URLs (maps.app.goo.gl) by following the redirect,
+    then extracts lat/lon from the full URL.
+
+    Parameters
+    ----------
+    url : str
+        Google Maps URL (shortened or full).
+
+    Returns
+    -------
+    tuple[float | None, float | None]
+        Latitude and longitude, or (None, None) on failure.
+    """
+    try:
+        full_url = _resolve_redirect(url)
+    except Exception:
+        logger.warning("Failed to resolve Google Maps URL: %s", url)
+        return None, None
+
+    return _extract_coords_from_url(full_url)
+
+
+def _resolve_redirect(url: str) -> str:
+    """Follow a single redirect and return the Location header, or the original URL."""
+    req = urllib.request.Request(url, method="HEAD")
+    # Don't follow redirects automatically — read Location header
+    opener = urllib.request.build_opener(urllib.request.HTTPHandler)
+    resp = opener.open(req, timeout=5)
+    final_url = resp.url  # urllib follows redirects; use the final URL
+    resp.close()
+    return final_url
+
+
+def _extract_coords_from_url(url: str) -> tuple[Optional[float], Optional[float]]:
+    """
+    Extract coordinates from a full Google Maps URL.
+
+    Supported patterns:
+    - /maps/search/LAT,+LON or /maps/search/LAT,LON
+    - /@LAT,LON,
+    - !3dLAT!4dLON
+    """
+    patterns = [
+        r"/maps/search/([-\d.]+),\+?([-\d.]+)",
+        r"/@([-\d.]+),([-\d.]+),",
+        r"!3d([-\d.]+)!4d([-\d.]+)",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, url)
+        if match:
+            try:
+                return float(match.group(1)), float(match.group(2))
+            except ValueError:
+                continue
+    return None, None
 
 
 def parse_numeric_value(value) -> tuple[Optional[float], Optional[str]]:
@@ -75,8 +148,10 @@ def parse_coordinates(value: str) -> tuple[Optional[float], Optional[float]]:
     if not text:
         return None, None
 
+    if _is_google_maps_url(text):
+        return resolve_google_maps_url(text)
+
     # Handle format with cardinal directions (e.g. "50,33558° N, 19,94761° E")
-    import re
 
     dms_match = re.match(
         r"([\d,\.]+)\s*°?\s*[NS]\s*,\s*([\d,\.]+)\s*°?\s*[EW]", text

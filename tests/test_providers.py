@@ -1,8 +1,14 @@
 """Tests for data providers."""
 
+from unittest.mock import MagicMock, patch
+
 import pytest
 
-from providers.parsers import parse_coordinates, parse_numeric_value
+from providers.parsers import (
+    parse_coordinates,
+    parse_numeric_value,
+    resolve_google_maps_url,
+)
 
 
 class TestParseNumericValue:
@@ -137,3 +143,78 @@ class TestParseCoordinates:
         lat, lon = parse_coordinates("50,33558° N, 19,94761° E")
         assert lat == pytest.approx(50.33558)
         assert lon == pytest.approx(19.94761)
+
+
+class TestResolveGoogleMapsUrl:
+    """Tests for resolve_google_maps_url and Google Maps URL integration."""
+
+    def test_resolve_google_maps_url_search_format(self):
+        """Test extracting coordinates from /maps/search/LAT,+LON URL."""
+        full_url = "https://www.google.com/maps/search/52.940722,+21.451795?entry=tts"
+        mock_resp = MagicMock()
+        mock_resp.url = full_url
+        mock_resp.close = MagicMock()
+
+        with patch("providers.parsers.urllib.request.build_opener") as mock_opener:
+            mock_opener.return_value.open.return_value = mock_resp
+            lat, lon = resolve_google_maps_url("https://maps.app.goo.gl/abc123")
+
+        assert lat == pytest.approx(52.940722)
+        assert lon == pytest.approx(21.451795)
+
+    def test_resolve_google_maps_url_at_format(self):
+        """Test extracting coordinates from /@LAT,LON,17z URL."""
+        full_url = "https://www.google.com/maps/@52.2297,21.0122,17z"
+        mock_resp = MagicMock()
+        mock_resp.url = full_url
+        mock_resp.close = MagicMock()
+
+        with patch("providers.parsers.urllib.request.build_opener") as mock_opener:
+            mock_opener.return_value.open.return_value = mock_resp
+            lat, lon = resolve_google_maps_url("https://maps.app.goo.gl/xyz789")
+
+        assert lat == pytest.approx(52.2297)
+        assert lon == pytest.approx(21.0122)
+
+    def test_resolve_google_maps_url_3d4d_format(self):
+        """Test extracting coordinates from !3dLAT!4dLON URL."""
+        full_url = "https://www.google.com/maps/place/!3d50.33558!4d19.94761"
+        mock_resp = MagicMock()
+        mock_resp.url = full_url
+        mock_resp.close = MagicMock()
+
+        with patch("providers.parsers.urllib.request.build_opener") as mock_opener:
+            mock_opener.return_value.open.return_value = mock_resp
+            lat, lon = resolve_google_maps_url("https://maps.app.goo.gl/qwe456")
+
+        assert lat == pytest.approx(50.33558)
+        assert lon == pytest.approx(19.94761)
+
+    def test_parse_coordinates_google_maps_url(self):
+        """Test parse_coordinates delegates to resolve_google_maps_url for Maps URLs."""
+        full_url = "https://www.google.com/maps/search/52.940722,+21.451795?entry=tts"
+        mock_resp = MagicMock()
+        mock_resp.url = full_url
+        mock_resp.close = MagicMock()
+
+        with patch("providers.parsers.urllib.request.build_opener") as mock_opener:
+            mock_opener.return_value.open.return_value = mock_resp
+            lat, lon = parse_coordinates(
+                "https://maps.app.goo.gl/aVNcKgJEJkj9fxwS6"
+            )
+
+        assert lat == pytest.approx(52.940722)
+        assert lon == pytest.approx(21.451795)
+
+    def test_parse_coordinates_google_maps_url_network_error(self):
+        """Test parse_coordinates returns (None, None) on network failure."""
+        with patch(
+            "providers.parsers.urllib.request.build_opener",
+            side_effect=OSError("Network unreachable"),
+        ):
+            lat, lon = parse_coordinates(
+                "https://maps.app.goo.gl/aVNcKgJEJkj9fxwS6"
+            )
+
+        assert lat is None
+        assert lon is None
