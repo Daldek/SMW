@@ -6,6 +6,7 @@ from typing import Any
 import pandas as pd
 
 from domain import Measurement, MeasurementPoint
+from providers.exceptions import InvalidFileStructureError
 from providers.parsers import parse_coordinates, parse_numeric_value
 
 
@@ -38,6 +39,8 @@ class ExcelProvider:
     COL_SURROUNDINGS = "Otoczenie"
     COL_INVESTIGATOR = "Osoba badająca"
     COL_CONTACT = "Kontakt"
+
+    MIN_MEASUREMENT_COLUMNS = 26
 
     # Parameter definitions with units
     PARAMETERS = {
@@ -102,12 +105,58 @@ class ExcelProvider:
 
         return self._load_measurements(point)
 
+    def _validate_points_sheet(self, xls: pd.ExcelFile) -> None:
+        """Validate that the 'Punkty' sheet exists and has required columns."""
+        if self.POINTS_SHEET not in xls.sheet_names:
+            raise InvalidFileStructureError(
+                f"Brak arkusza '{self.POINTS_SHEET}' w pliku. "
+                f"Dostepne arkusze: {xls.sheet_names}"
+            )
+
+        df = pd.read_excel(xls, sheet_name=self.POINTS_SHEET, nrows=0)
+        required = {self.COL_NAME, self.COL_CODE}
+        missing = required - set(df.columns)
+        if missing:
+            raise InvalidFileStructureError(
+                f"Brak wymaganych kolumn w arkuszu '{self.POINTS_SHEET}': "
+                f"{', '.join(sorted(missing))}"
+            )
+
+    def _validate_measurement_sheet(
+        self, xls: pd.ExcelFile, sheet_name: str
+    ) -> None:
+        """Validate that a measurement sheet exists and has enough columns."""
+        if sheet_name not in xls.sheet_names:
+            raise InvalidFileStructureError(
+                f"Brak arkusza '{sheet_name}' w pliku. "
+                f"Dostepne arkusze: {xls.sheet_names}"
+            )
+
+        df = pd.read_excel(
+            xls,
+            sheet_name=sheet_name,
+            header=None,
+            skiprows=self.MEASUREMENTS_START_ROW,
+            nrows=1,
+        )
+        if len(df.columns) < self.MIN_MEASUREMENT_COLUMNS:
+            raise InvalidFileStructureError(
+                f"Arkusz '{sheet_name}' ma {len(df.columns)} kolumn, "
+                f"wymagane minimum {self.MIN_MEASUREMENT_COLUMNS}."
+            )
+
     def _load_points(self) -> None:
         """Load measurement points from the Excel file."""
-        df = pd.read_excel(self._path, sheet_name=self.POINTS_SHEET)
+        xls = pd.ExcelFile(self._path)
+        self._validate_points_sheet(xls)
+        df = pd.read_excel(xls, sheet_name=self.POINTS_SHEET)
         self._points = {}
 
         for _, row in df.iterrows():
+            # Skip rows with empty point name
+            if pd.isna(row[self.COL_NAME]) or str(row[self.COL_NAME]).strip() == "":
+                continue
+
             lat, lon = parse_coordinates(row[self.COL_COORDS])
 
             name = str(row[self.COL_NAME]).strip()
@@ -135,8 +184,10 @@ class ExcelProvider:
 
     def _load_measurements(self, point: MeasurementPoint) -> list[Measurement]:
         """Load measurements for a specific point."""
+        xls = pd.ExcelFile(self._path)
+        self._validate_measurement_sheet(xls, point.name)
         df = pd.read_excel(
-            self._path,
+            xls,
             sheet_name=point.name,
             header=None,
             skiprows=self.MEASUREMENTS_START_ROW,

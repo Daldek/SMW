@@ -22,4 +22,4 @@ dev = [
 ]
 
 [tool.setuptools.packages.find]
-include = ["domain*", "providers*", "visualization*", "gui*"]
+include = ["domain*", "providers*", "visualization*", "gui*", "exporters*"]

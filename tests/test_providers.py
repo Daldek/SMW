@@ -119,3 +119,21 @@ class TestParseCoordinates:
         lat, lon = parse_coordinates("52.2297")
         assert lat is None
         assert lon is None
+
+    def test_parse_coordinates_comma_separator_with_dots(self):
+        """Test parsing coordinates with comma separator and dot decimals."""
+        lat, lon = parse_coordinates("52.213396, 21.185913")
+        assert lat == pytest.approx(52.213396)
+        assert lon == pytest.approx(21.185913)
+
+    def test_parse_coordinates_comma_separator_no_space(self):
+        """Test parsing coordinates with comma separator without space."""
+        lat, lon = parse_coordinates("52.213396,21.185913")
+        assert lat == pytest.approx(52.213396)
+        assert lon == pytest.approx(21.185913)
+
+    def test_parse_coordinates_with_cardinal_directions(self):
+        """Test parsing coordinates with degree symbols and cardinal directions."""
+        lat, lon = parse_coordinates("50,33558° N, 19,94761° E")
+        assert lat == pytest.approx(50.33558)
+        assert lon == pytest.approx(19.94761)

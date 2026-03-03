@@ -49,15 +49,21 @@ Podczas generowania kodu Claude powinien stosować się do wszystkich powyższyc
      list_measurements(point_id: str) -> list[Measurement]
      ```
 
-3. **Visualization**
+3. **Exporters**
+   - eksport danych wyjściowych z Domain Model
+   - symetryczny do `providers/` (providers = wejście, exporters = wyjście)
+   - `csv_exporter` — generowanie CSV z wynikami i błędami
+   - używa wyłącznie standardowej biblioteki `csv` (nie pandas)
+
+4. **Visualization**
    - generuje wykresy na podstawie `list[Measurement]`
    - używa seaborn + matplotlib
    - nie zależy od providerów ani Streamlit
 
-4. **GUI**
+5. **GUI**
    - Streamlit
    - wybór danych, punktu, parametrów
-   - wywołuje provider + visualization
+   - wywołuje provider + visualization + exporter
    - nie zawiera logiki domenowej ani parsowania
 
 ## Domain Model
@@ -95,12 +101,15 @@ Format wykresu:
 - upload pliku wejściowego
 - wybór punktu z listy
 - wyświetlenie wykresu
+- eksport CSV (wszystkie punkty, współrzędne, ostatni pomiar)
+- tryb batch z eksportem zbiorczego CSV + CSV błędów
 
 ## Testy
 Wymagane testy obejmują:
-- provider: parsowanie danych, wartości `<`, `>`
+- provider: parsowanie danych, wartości `<`, `>`, współrzędne (różne formaty)
 - domain: integralność struktur
 - visualization: bezbłędne renderowanie figur
+- exporter: formatowanie wartości, budowanie wierszy, export/merge CSV, CSV błędów
 - brak testów dla UI w MVP
 
 ## Wymagania techniczne

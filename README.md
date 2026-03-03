@@ -20,6 +20,9 @@ System umozliwia wizualizacje zmiennosci parametrow fizykochemicznych wod na pod
     - Azotany, azotyny, fosforany, chlorki, siarczany
 - Obsluga flag pomiarowych (`<`, `>`) - wartosci poza zakresem pomiaru sa wyroznionie czarna obwodka
 - Tryb batch - generowanie wykresow dla wielu plikow naraz z pobraniem ZIP
+- Eksport wynikow do CSV (wszystkie punkty, wspolrzedne, ostatnie pomiary)
+  - Tryb pojedynczego pliku - eksport + aktualizacja istniejacego CSV (merge)
+  - Tryb batch - zbiorczy CSV z deduplikacja + CSV bledow
 
 ## Wymagania
 
@@ -61,13 +64,15 @@ Aplikacja otworzy sie w przegladarce pod adresem `http://localhost:8501`.
 1. Zaladuj plik Excel z danymi pomiarowymi
 2. Wybierz punkt pomiarowy z listy
 3. Wykresy zostana wygenerowane automatycznie
+4. W sekcji "Eksport CSV" pobierz plik `wyniki.csv` ze wszystkimi punktami
+   - Opcjonalnie zaladuj istniejacy CSV, aby zaktualizowac go o nowe dane
 
 ### Tryb batch (generowanie z folderu)
 
 1. Przejdz do zakladki "Generowanie z folderu"
-2. Zaladuj wiele plikow Excel
+2. Podaj sciezke do folderu (lub uzyj przycisku "Wybierz folder")
 3. Kliknij "Generuj wykresy"
-4. Pobierz archiwum ZIP z wszystkimi wykresami
+4. Pobierz archiwum ZIP z wykresami, plik `wyniki.csv` z danymi oraz `error_wyniki.csv` z bledami
 
 ## Struktura projektu
 
@@ -79,7 +84,10 @@ SMW/
 ├── providers/           # Adaptery zrodel danych
 │   ├── base.py          # Protokol DataProvider
 │   ├── excel.py         # Provider dla plikow Excel
+│   ├── exceptions.py    # Wyjatki providerow
 │   └── parsers.py       # Narzedzia parsowania
+├── exporters/           # Eksport danych wyjsciowych
+│   └── csv_exporter.py  # Eksport do CSV (wyniki + bledy)
 ├── visualization/       # Generowanie wykresow
 │   └── plots.py         # Funkcje plot_water_quality, plot_chemical_parameters
 ├── gui/                 # Interfejs uzytkownika
@@ -114,6 +122,26 @@ Plik Excel musi zawierac:
 Obslugiwane formaty wartosci:
 - Liczby: `1.23`, `1,23`
 - Flagi zakresu: `<0.05`, `>100`
+
+Obslugiwane formaty wspolrzednych:
+- `52.213396, 21.185913` (kropki dziesietne, przecinek jako separator)
+- `52,2297 21,0122` (przecinki dziesietne, spacja jako separator)
+- `52,2297;21,0122` (srednik jako separator)
+- `50,33558° N, 19,94761° E` (symbole stopni i kierunki geograficzne)
+
+### Format CSV wyjsciowego
+
+Kolumny w `wyniki.csv`:
+```
+point_id, point_name, river_name, jcwp_code, catchment_authority, rzgw,
+latitude, longitude, timestamp, water_temperature, transparency,
+dissolved_oxygen, nitrates, nitrites, phosphates, chlorides, sulphates,
+pH, water_temperature_home, conductivity
+```
+
+- Wartosci z flagami jako tekst: `<0.05`, `>100`
+- Brak wartosci = puste pole
+- Kodowanie UTF-8 z BOM (kompatybilnosc z Excelem)
 
 ## Dokumentacja
 

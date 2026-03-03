@@ -75,7 +75,35 @@ def parse_coordinates(value: str) -> tuple[Optional[float], Optional[float]]:
     if not text:
         return None, None
 
-    text = text.replace(",", ".")
+    # Handle format with cardinal directions (e.g. "50,33558° N, 19,94761° E")
+    import re
+
+    dms_match = re.match(
+        r"([\d,\.]+)\s*°?\s*[NS]\s*,\s*([\d,\.]+)\s*°?\s*[EW]", text
+    )
+    if dms_match:
+        try:
+            lat = float(dms_match.group(1).replace(",", "."))
+            lon = float(dms_match.group(2).replace(",", "."))
+            return lat, lon
+        except ValueError:
+            pass
+
+    # Try comma as value separator first (e.g. "52.213396, 21.185913")
+    if "," in text:
+        parts = [p.strip() for p in text.split(",")]
+        if len(parts) == 2:
+            try:
+                return (
+                    float(parts[0].replace(",", ".")),
+                    float(parts[1].replace(",", ".")),
+                )
+            except ValueError:
+                pass
+        # Comma may be a decimal separator (e.g. "52,1234 21,0123")
+        text = text.replace(",", ".")
+
+    # Try semicolon as value separator (e.g. "52,1234;21,0123")
     text = text.replace(";", " ")
 
     parts = text.split()

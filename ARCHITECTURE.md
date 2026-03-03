@@ -58,6 +58,23 @@ Ważne:
 - provider może czytać cokolwiek (Excel, CSV, API)
 - musi zwrócić **Domain Model**, a nie DataFrame
 
+## Warstwa Exporters
+
+Symetryczna do Data Providers:
+- `providers/` = dane wejściowe (źródło → Domain Model)
+- `exporters/` = dane wyjściowe (Domain Model → CSV)
+
+Moduł `csv_exporter` generuje:
+- `wyniki.csv` — punkt, metadane (rzeka, JCWP, zarząd zlewni, RZGW), współrzędne, timestamp, parametry
+- `error_wyniki.csv` — pliki z błędami (filename, error_type, error_message)
+
+Obsługuje:
+- eksport pełnego CSV z jednego lub wielu plików
+- merge nowych danych z istniejącym CSV (aktualizacja po `point_id`)
+- deduplikację po `point_id` (zachowanie najnowszego `timestamp`)
+
+Używa wyłącznie standardowej biblioteki `csv` (nie pandas — zgodnie z RULES.md).
+
 ## Warstwa Visualization
 
 Wizualizacja nie zna formatu danych, widzi tylko:
@@ -90,9 +107,10 @@ GUI **nie zna**:
 ## Testy
 
 Testowane są:
-- provider (parsowanie źródeł)
+- provider (parsowanie źródeł, współrzędne w różnych formatach, walidacja struktury)
 - domain model (integralność)
 - visualization (brak błędów przy renderowaniu)
+- exporter (formatowanie wartości, budowanie wierszy, export/merge CSV, CSV błędów)
 - wartości `<` `>` w parach (value, flag)
 
 ## Rozszerzalność
@@ -106,6 +124,8 @@ Przykłady potencjalnych providerów:
 - `MockProvider()` (do testów)
 
 Provider'y nie wpływają na kod GUI lub visualization.
+
+Dodanie nowego formatu eksportu = dodanie modułu w `exporters/` operującego na Domain Model.
 
 ## Zależności
 
