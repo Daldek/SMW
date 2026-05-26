@@ -144,6 +144,42 @@ class TestParseCoordinates:
         assert lat == pytest.approx(50.33558)
         assert lon == pytest.approx(19.94761)
 
+    def test_parse_coordinates_full_dms(self):
+        """Parse full DMS format with degrees, minutes, seconds, direction."""
+        lat, lon = parse_coordinates("52°29'21.7\"N 20°54'16.5\"E")
+        assert lat == pytest.approx(52.489361, abs=1e-5)
+        assert lon == pytest.approx(20.904583, abs=1e-5)
+
+    def test_parse_coordinates_full_dms_comma_separator(self):
+        """DMS components separated by comma instead of space."""
+        lat, lon = parse_coordinates("52°29'21.7\"N, 20°54'16.5\"E")
+        assert lat == pytest.approx(52.489361, abs=1e-5)
+        assert lon == pytest.approx(20.904583, abs=1e-5)
+
+    def test_parse_coordinates_full_dms_lon_first(self):
+        """DMS components in lon/lat order are normalized to lat/lon."""
+        lat, lon = parse_coordinates("20°54'16.5\"E 52°29'21.7\"N")
+        assert lat == pytest.approx(52.489361, abs=1e-5)
+        assert lon == pytest.approx(20.904583, abs=1e-5)
+
+    def test_parse_coordinates_full_dms_comma_decimal(self):
+        """DMS with comma as decimal separator in seconds."""
+        lat, lon = parse_coordinates("52°29'21,7\"N 20°54'16,5\"E")
+        assert lat == pytest.approx(52.489361, abs=1e-5)
+        assert lon == pytest.approx(20.904583, abs=1e-5)
+
+    def test_parse_coordinates_comma_as_decimal_and_field_separator(self):
+        """Parse '51,48149, 16,9292789' (comma serves both roles)."""
+        lat, lon = parse_coordinates(" 51,48149,  16,9292789")
+        assert lat == pytest.approx(51.48149)
+        assert lon == pytest.approx(16.9292789)
+
+    def test_parse_coordinates_full_dms_southern_hemisphere(self):
+        """South / West directions produce negative decimal degrees."""
+        lat, lon = parse_coordinates("33°51'35.9\"S 151°12'30.0\"E")
+        assert lat == pytest.approx(-33.859972, abs=1e-5)
+        assert lon == pytest.approx(151.208333, abs=1e-5)
+
 
 class TestResolveGoogleMapsUrl:
     """Tests for resolve_google_maps_url and Google Maps URL integration."""

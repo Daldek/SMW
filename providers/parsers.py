@@ -76,6 +76,59 @@ def _extract_coords_from_url(url: str) -> tuple[Optional[float], Optional[float]
     return None, None
 
 
+_DMS_PATTERN = re.compile(
+    r"(\d+)\s*°\s*"
+    r"(\d+)\s*['′`]\s*"
+    r"(\d+(?:[.,]\d+)?)\s*(?:\"|''|″)\s*"
+    r"([NSEW])",
+    re.IGNORECASE,
+)
+
+
+def _dms_to_decimal(deg: str, minutes: str, seconds: str, direction: str) -> float:
+    """Convert DMS components to signed decimal degrees."""
+    value = (
+        int(deg)
+        + int(minutes) / 60
+        + float(seconds.replace(",", ".")) / 3600
+    )
+    if direction.upper() in ("S", "W"):
+        value = -value
+    return value
+
+
+def _try_parse_dms(text: str) -> tuple[Optional[float], Optional[float]]:
+    """
+    Parse full DMS coordinates with cardinal directions.
+
+    Matches two DMS components in any order (lat/lon or lon/lat), e.g.
+    ``52°29'21.7"N 20°54'16.5"E`` or ``20°54'16.5"E, 52°29'21.7"N``.
+
+    Returns
+    -------
+    tuple[float | None, float | None]
+        (lat, lon) in decimal degrees, or (None, None) when no two
+        DMS components with valid N/S and E/W directions are found.
+    """
+    matches = list(_DMS_PATTERN.finditer(text))
+    if len(matches) != 2:
+        return None, None
+
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    for match in matches:
+        deg, minutes, seconds, direction = match.groups()
+        value = _dms_to_decimal(deg, minutes, seconds, direction)
+        if direction.upper() in ("N", "S"):
+            lat = value
+        else:
+            lon = value
+
+    if lat is None or lon is None:
+        return None, None
+    return lat, lon
+
+
 def parse_numeric_value(value) -> tuple[Optional[float], Optional[str]]:
     """
     Parse numeric value with optional range qualifier.
@@ -130,6 +183,9 @@ def parse_coordinates(value: str) -> tuple[Optional[float], Optional[float]]:
     - "52.1234 21.0123"
     - "52,1234 21,0123"
     - "52,1234;21,0123"
+    - "50,33558° N, 19,94761° E" (decimal degrees with direction)
+    - "52°29'21.7\"N 20°54'16.5\"E" (full DMS with direction)
+    - Shortened Google Maps URLs
 
     Parameters
     ----------
@@ -150,6 +206,11 @@ def parse_coordinates(value: str) -> tuple[Optional[float], Optional[float]]:
 
     if _is_google_maps_url(text):
         return resolve_google_maps_url(text)
+
+    # Full DMS with cardinal directions (e.g. "52°29'21.7\"N 20°54'16.5\"E")
+    lat, lon = _try_parse_dms(text)
+    if lat is not None and lon is not None:
+        return lat, lon
 
     # Handle format with cardinal directions (e.g. "50,33558° N, 19,94761° E")
 
@@ -172,6 +233,15 @@ def parse_coordinates(value: str) -> tuple[Optional[float], Optional[float]]:
                 return (
                     float(parts[0].replace(",", ".")),
                     float(parts[1].replace(",", ".")),
+                )
+            except ValueError:
+                pass
+        # Comma is both decimal and field separator (e.g. "51,48149, 16,9292789")
+        if len(parts) == 4 and all(p.isdigit() for p in parts):
+            try:
+                return (
+                    float(f"{parts[0]}.{parts[1]}"),
+                    float(f"{parts[2]}.{parts[3]}"),
                 )
             except ValueError:
                 pass
